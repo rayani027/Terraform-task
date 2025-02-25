@@ -1,0 +1,47 @@
+trigger:
+  - main
+pool:
+ vmImage: 'ubuntu-latest'
+stages:
+- stage: Terraform_Deployment
+  jobs:
+  - job: Terraform
+    steps:
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
+
+    - task: TerraformTaskV4
+      displayName: 'Terraform Init'
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        backendType: 'azurerm'
+        backendServiceArm: 'AzureRMServiceConnection' # Replace with your service connection name
+        backendAzureRmResourceGroupName: 'terraform-backend-rg'
+        backendAzureRmStorageAccountName: 'terraformstate12345'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: 'terraform.tfstate'
+
+    - task: TerraformTaskV4
+      displayName: 'Terraform Validate'
+      inputs:
+        provider: 'azurerm'
+        command: 'validate'
+
+    - task: TerraformTaskV4
+      displayName: 'Terraform Plan'
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        commandOptions: '-var="env=$(Build.SourceBranchName)"'
+        environmentServiceNameAzureRM: 'AzureRMServiceConnection' # Replace with your service connection name
+
+    - task: TerraformTaskV4
+      displayName: 'Terraform Apply'
+      condition: and(succeeded(), eq(variables['Build.SourceBranchName'], 'main'))
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        commandOptions: '-auto-approve -var="env=$(Build.SourceBranchName)"'
+        environmentServiceNameAzureRM: 'AzureRMServiceConnection' # Replace with your service connection name
